@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Kim
+    given-names: Soohwan
+title: "Conformer: Convolution-augmented Transformer for Speech Recognition"
+version: 1.0.0
+doi: 10.5281/zenodo.18154427
+date-released: 2025-01-05
+url: "https://github.com/sooftware/conformer"
+```
+
+## 3. Google Scholar 색인 대기
+- DOI가 발급됐으니 Google Scholar가 며칠~몇 주 내에 자동으로 색인할 거예요
+- 더 빠르게 하려면 arXiv에 간단한 technical report를 올리는 것도 방법이에요
+
+## 4. 인용 형식 안내
+README에 인용 방법을 추가해두면 좋아요:
+```
+## Citation
+If you use this code in your research, please cite:
+Soohwan Kim. (2025). Conformer: Convolution-augmented Transformer for Speech Recognition. Zenodo. https://doi.org/10.5281/zenodo.18154427
