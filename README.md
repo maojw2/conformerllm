@@ -10,7 +10,7 @@
 
 ***
 
-<p  align="center"> 
+<p align="center"> 
      <a href="https://github.com/sooftware/jasper/blob/main/LICENSE">
           <img src="http://img.shields.io/badge/license-Apache--2.0-informational"> 
      </a>
@@ -20,9 +20,10 @@
      <a href="https://www.python.org/dev/peps/pep-0008/">
           <img src="http://img.shields.io/badge/codestyle-PEP--8-informational"> 
      </a>
-     <a href="https://github.com/sooftware/conformer">
-          <img src="http://img.shields.io/badge/build-passing-success"> 
+     <a href="https://doi.org/10.5281/zenodo.18154427">
+          <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18154427.svg" alt="DOI">
      </a>
+</p>
 
   
 Transformer models are good at capturing content-based global interactions, while CNNs exploit local features effectively. Conformer combine convolution neural networks and transformers to model both local and global dependencies of an audio sequence in a parameter-efficient way. Conformer significantly outperforms the previous Transformer and CNN based models achieving state-of-the-art accuracies.   
