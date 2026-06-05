@@ -25,6 +25,7 @@ setup(
     install_requires=[
         'torch>=1.4.0',
         'numpy',
+        'torchvision',
     ],
     keywords=['asr', 'speech_recognition', 'conformer', 'end-to-end'],
     python_requires='>=3.6'

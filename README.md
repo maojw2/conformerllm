@@ -80,6 +80,92 @@ outputs, output_lengths = model(inputs, input_lengths)
 # Calculate CTC Loss
 loss = criterion(outputs.transpose(0, 1), targets, output_lengths, target_lengths)
 ```
+
+### Using image-like feature maps
+
+If your training data is stored like an image whose x-axis is time and y-axis is features, you can pass it directly
+to the model as `(batch, channels, features, time)`.
+
+```python
+import torch
+from conformer import Conformer
+
+batch_size, channels, features, time = 3, 1, 80, 1024
+
+model = Conformer(
+    num_classes=10,
+    input_dim=channels * features,
+    encoder_dim=32,
+    num_encoder_layers=3,
+    input_layout="bcft",
+)
+
+inputs = torch.rand(batch_size, channels, features, time)
+input_lengths = torch.LongTensor([1024, 1000, 980])
+outputs, output_lengths = model(inputs, input_lengths)
+```
+
+Supported layouts:
+
+* `btc`: `(batch, time, features)` (original behavior)
+* `bft`: `(batch, features, time)`
+* `bcft`: `(batch, channels, features, time)`
+* `auto`: infer a supported layout when possible
+
+For `bcft`, set `input_dim = channels * features`.
+
+## Image classification
+
+To test the Conformer structure on image classification, `train_cifar10.py` maps an image into a
+time-feature sequence:
+
+* x axis (image width) -> time
+* y axis (image height * channels) -> features
+
+In other words:
+
+* a `(3, 32, 32)` CIFAR-10 image becomes a sequence of length `32`, and each time step has `96` features
+* a `(3, 64, 64)` tiny-ImageNet image becomes a sequence of length `64`, and each time step has `192` features
+
+The training script now supports:
+
+* `--dataset cifar10` and `--dataset tiny-imagenet`
+* train / validation / test split
+* checkpoint saving: `last.pt` and `best.pt`
+* resume training with `--resume`
+* evaluation-only mode with `--eval-only`
+* training history saved to `history.json`
+* per-batch logging to a txt file
+
+Run a quick smoke test:
+
+```bash
+python train_cifar10.py --epochs 1 --train-subset 1024 --val-subset 256 --test-subset 256 --batch-size 64
+```
+
+Run a fuller CIFAR-10 experiment:
+
+```bash
+python train_cifar10.py --dataset cifar10 --epochs 20 --batch-size 128 --output-dir runs/cifar10_conformer
+```
+
+Run tiny-ImageNet:
+
+```bash
+python train_cifar10.py --dataset tiny-imagenet --data-dir /path/to/tiny-imagenet-200 --epochs 20 --batch-size 1024 --lr 0.001 --output-dir runs/tiny_imagenet
+```
+
+Resume training:
+
+```bash
+python train_cifar10.py --dataset tiny-imagenet --data-dir /path/to/tiny-imagenet-200 --epochs 100 --batch-size 1024 --lr 0.001 --resume runs/tiny_imagenet/last.pt --output-dir runs/tiny_imagenet
+```
+
+Evaluate the best checkpoint:
+
+```bash
+python train_cifar10.py --eval-only --resume runs/cifar10_conformer/best.pt
+```
   
 ## Troubleshoots and Contributing
 If you have any questions, bug reports, and feature requests, please [open an issue](https://github.com/sooftware/conformer/issues) on github or   
