@@ -40,6 +40,9 @@ class Conformer(nn.Module):
         conv_dropout_p (float, optional): Probability of conformer convolution module dropout
         conv_kernel_size (int or tuple, optional): Size of the convolving kernel
         half_step_residual (bool): Flag indication whether to use half step residual or not
+        encoder_block_mode (str): Which middle modules to use inside each encoder
+            block. Supports ``"full"``, ``"attention-only"``, and
+            ``"convolution-only"``.
         input_layout (str, optional): Default input layout. Supports ``"btc"`` for
             ``(batch, time, features)``, ``"bft"`` for ``(batch, features, time)``,
             and ``"bcft"`` for image-like tensors ``(batch, channels, features, time)``.
@@ -68,6 +71,7 @@ class Conformer(nn.Module):
             conv_dropout_p: float = 0.1,
             conv_kernel_size: int = 31,
             half_step_residual: bool = True,
+            encoder_block_mode: str = "full",
             input_layout: str = "btc",
     ) -> None:
         super(Conformer, self).__init__()
@@ -86,6 +90,7 @@ class Conformer(nn.Module):
             conv_dropout_p=conv_dropout_p,
             conv_kernel_size=conv_kernel_size,
             half_step_residual=half_step_residual,
+            block_mode=encoder_block_mode,
         )
         self.fc = Linear(encoder_dim, num_classes, bias=False)
 

@@ -114,10 +114,15 @@ Supported layouts:
 
 For `bcft`, set `input_dim = channels * features`.
 
-## Image classification
+## Oxford-IIIT Pet segmentation and image classification
 
-To test the Conformer structure on image classification, `train_cifar10.py` maps an image into a
-time-feature sequence:
+`train_cifar10.py` now defaults to a real Oxford-IIIT Pet foreground/background segmentation task.
+Oxford-IIIT Pet provides trimap segmentation labels; the script maps pet pixels to foreground,
+background pixels to background, and ignores trimap boundary pixels during loss and metric calculation.
+CIFAR-10 pseudo segmentation is still available for comparison, but Oxford-IIIT Pet is the recommended
+segmentation dataset.
+
+For both segmentation and classification, the script maps an image into a time-feature sequence:
 
 * x axis (image width) -> time
 * y axis (image height * channels) -> features
@@ -125,11 +130,17 @@ time-feature sequence:
 In other words:
 
 * a `(3, 32, 32)` CIFAR-10 image becomes a sequence of length `32`, and each time step has `96` features
+* a `(3, 64, 64)` Oxford-IIIT Pet image becomes a sequence of length `64`, and each time step has `192` features
 * a `(3, 64, 64)` tiny-ImageNet image becomes a sequence of length `64`, and each time step has `192` features
+* in segmentation mode, the Conformer output is decoded into dense `(2, height, width)` foreground/background logits
 
 The training script now supports:
 
-* `--dataset cifar10` and `--dataset tiny-imagenet`
+* `--task segmentation` for Oxford-IIIT Pet real segmentation (default)
+* `--dataset cifar10` for CIFAR-10 pseudo segmentation
+* `--task classification` for CIFAR-10, tiny-ImageNet, and ImageNet Mini classification
+* `--dataset oxford-pet`, `--dataset cifar10`, `--dataset tiny-imagenet`, and `--dataset imagenet-mini`
+* `--encoder-block-mode full|attention-only|convolution-only` for attention/convolution ablations
 * train / validation / test split
 * checkpoint saving: `last.pt` and `best.pt`
 * resume training with `--resume`
@@ -137,34 +148,71 @@ The training script now supports:
 * training history saved to `history.json`
 * per-batch logging to a txt file
 
-Run a quick smoke test:
+Run a quick Oxford-IIIT Pet segmentation smoke test:
 
 ```bash
-python train_cifar10.py --epochs 1 --train-subset 1024 --val-subset 256 --test-subset 256 --batch-size 64
+python train_cifar10.py --dataset oxford-pet --epochs 1 --train-subset 128 --val-subset 64 --test-subset 64 --batch-size 32 --output-dir runs/oxford_pet_smoke
 ```
 
-Run a fuller CIFAR-10 experiment:
+Run a fuller Oxford-IIIT Pet segmentation experiment:
 
 ```bash
-python train_cifar10.py --dataset cifar10 --epochs 20 --batch-size 128 --output-dir runs/cifar10_conformer
+python train_cifar10.py --dataset oxford-pet --epochs 50 --batch-size 128 --image-size 256 --loss ce-dice --output-dir runs/oxford_pet_segmentation_256_cedice_50ep
+```
+
+Run an attention-only Oxford-IIIT Pet smoke test:
+
+```bash
+python train_cifar10.py --dataset oxford-pet --epochs 1 --batch-size 4 --image-size 256 --loss ce-dice --encoder-block-mode attention-only --train-subset 16 --val-subset 16 --test-subset 16 --output-dir runs/oxford_pet_segmentation_attention_only_smoke
+```
+
+Export original/mask comparison images from the best checkpoint:
+
+```bash
+python export_cifar10_segmentation_examples.py --checkpoint runs/oxford_pet_segmentation_256_cedice_50ep/best.pt --output-dir runs/oxford_pet_segmentation_256_cedice_50ep/val_blue_red_comparisons --output-kind comparison --per-class 10
+```
+
+Run CIFAR-10 pseudo segmentation:
+
+```bash
+python train_cifar10.py --task segmentation --dataset cifar10 --epochs 20 --batch-size 128 --output-dir runs/cifar10_segmentation
+```
+
+Run CIFAR-10 classification:
+
+```bash
+python train_cifar10.py --task classification --dataset cifar10 --epochs 20 --batch-size 128 --output-dir runs/cifar10_conformer
 ```
 
 Run tiny-ImageNet:
 
 ```bash
-python train_cifar10.py --dataset tiny-imagenet --data-dir /path/to/tiny-imagenet-200 --epochs 20 --batch-size 1024 --lr 0.001 --output-dir runs/tiny_imagenet
+python train_cifar10.py --task classification --dataset tiny-imagenet --data-dir /path/to/tiny-imagenet-200 --epochs 20 --batch-size 1024 --lr 0.001 --output-dir runs/tiny_imagenet
+```
+
+Download ImageNet Mini from Kaggle:
+
+```bash
+pip install kagglehub
+python -c "import kagglehub; kagglehub.dataset_download('ifigotin/imagenetmini-1000', output_dir='data/imagenetmini-1000')"
+```
+
+Run ImageNet Mini:
+
+```bash
+python train_cifar10.py --task classification --dataset imagenet-mini --data-dir data/imagenetmini-1000 --epochs 20 --batch-size 128 --lr 0.001 --image-size 64 --output-dir runs/imagenet_mini
 ```
 
 Resume training:
 
 ```bash
-python train_cifar10.py --dataset tiny-imagenet --data-dir /path/to/tiny-imagenet-200 --epochs 100 --batch-size 1024 --lr 0.001 --resume runs/tiny_imagenet/last.pt --output-dir runs/tiny_imagenet
+python train_cifar10.py --task segmentation --dataset oxford-pet --epochs 100 --batch-size 128 --lr 0.001 --resume runs/oxford_pet_segmentation/last.pt --output-dir runs/oxford_pet_segmentation
 ```
 
 Evaluate the best checkpoint:
 
 ```bash
-python train_cifar10.py --eval-only --resume runs/cifar10_conformer/best.pt
+python train_cifar10.py --eval-only --dataset oxford-pet --resume runs/oxford_pet_segmentation/best.pt
 ```
   
 ## Troubleshoots and Contributing

@@ -46,6 +46,8 @@ class ConformerBlock(nn.Module):
         conv_dropout_p (float, optional): Probability of conformer convolution module dropout
         conv_kernel_size (int or tuple, optional): Size of the convolving kernel
         half_step_residual (bool): Flag indication whether to use half step residual or not
+        block_mode (str): Which middle modules to use. Supports ``"full"``,
+            ``"attention-only"``, and ``"convolution-only"``.
 
     Inputs: inputs
         - **inputs** (batch, time, dim): Tensor containing input vector
@@ -64,14 +66,17 @@ class ConformerBlock(nn.Module):
             conv_dropout_p: float = 0.1,
             conv_kernel_size: int = 31,
             half_step_residual: bool = True,
+            block_mode: str = "full",
     ):
         super(ConformerBlock, self).__init__()
+        if block_mode not in ("full", "attention-only", "convolution-only"):
+            raise ValueError("block_mode must be one of: 'full', 'attention-only', 'convolution-only'")
         if half_step_residual:
             self.feed_forward_residual_factor = 0.5
         else:
             self.feed_forward_residual_factor = 1
 
-        self.sequential = nn.Sequential(
+        modules = [
             ResidualConnectionModule(
                 module=FeedForwardModule(
                     encoder_dim=encoder_dim,
@@ -80,21 +85,29 @@ class ConformerBlock(nn.Module):
                 ),
                 module_factor=self.feed_forward_residual_factor,
             ),
-            ResidualConnectionModule(
-                module=MultiHeadedSelfAttentionModule(
-                    d_model=encoder_dim,
-                    num_heads=num_attention_heads,
-                    dropout_p=attention_dropout_p,
-                ),
-            ),
-            ResidualConnectionModule(
-                module=ConformerConvModule(
-                    in_channels=encoder_dim,
-                    kernel_size=conv_kernel_size,
-                    expansion_factor=conv_expansion_factor,
-                    dropout_p=conv_dropout_p,
-                ),
-            ),
+        ]
+        if block_mode in ("full", "attention-only"):
+            modules.append(
+                ResidualConnectionModule(
+                    module=MultiHeadedSelfAttentionModule(
+                        d_model=encoder_dim,
+                        num_heads=num_attention_heads,
+                        dropout_p=attention_dropout_p,
+                    ),
+                )
+            )
+        if block_mode in ("full", "convolution-only"):
+            modules.append(
+                ResidualConnectionModule(
+                    module=ConformerConvModule(
+                        in_channels=encoder_dim,
+                        kernel_size=conv_kernel_size,
+                        expansion_factor=conv_expansion_factor,
+                        dropout_p=conv_dropout_p,
+                    ),
+                )
+            )
+        modules.extend([
             ResidualConnectionModule(
                 module=FeedForwardModule(
                     encoder_dim=encoder_dim,
@@ -104,7 +117,8 @@ class ConformerBlock(nn.Module):
                 module_factor=self.feed_forward_residual_factor,
             ),
             nn.LayerNorm(encoder_dim),
-        )
+        ])
+        self.sequential = nn.Sequential(*modules)
 
     def forward(self, inputs: Tensor) -> Tensor:
         return self.sequential(inputs)
@@ -127,6 +141,8 @@ class ConformerEncoder(nn.Module):
         conv_dropout_p (float, optional): Probability of conformer convolution module dropout
         conv_kernel_size (int or tuple, optional): Size of the convolving kernel
         half_step_residual (bool): Flag indication whether to use half step residual or not
+        block_mode (str): Which middle modules to use. Supports ``"full"``,
+            ``"attention-only"``, and ``"convolution-only"``.
 
     Inputs: inputs, input_lengths
         - **inputs** (batch, time, dim): Tensor containing input vector
@@ -150,8 +166,12 @@ class ConformerEncoder(nn.Module):
             conv_dropout_p: float = 0.1,
             conv_kernel_size: int = 31,
             half_step_residual: bool = True,
+            block_mode: str = "full",
     ):
         super(ConformerEncoder, self).__init__()
+        if block_mode not in ("full", "attention-only", "convolution-only"):
+            raise ValueError("block_mode must be one of: 'full', 'attention-only', 'convolution-only'")
+        self.block_mode = block_mode
         self.conv_subsample = Conv2dSubampling(in_channels=1, out_channels=encoder_dim)
         self.input_projection = nn.Sequential(
             Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim),
@@ -167,6 +187,7 @@ class ConformerEncoder(nn.Module):
             conv_dropout_p=conv_dropout_p,
             conv_kernel_size=conv_kernel_size,
             half_step_residual=half_step_residual,
+            block_mode=block_mode,
         ) for _ in range(num_layers)])
 
     def count_parameters(self) -> int:
